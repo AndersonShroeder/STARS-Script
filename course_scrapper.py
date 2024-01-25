@@ -24,8 +24,8 @@ def extract_text_from_website(url, parent_class='col-lg-12 course', child_elemen
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
-# Example usage
-database_url = 'https://courses.rice.edu/courses/courses/!SWKSCAT.cat?p_action=CATALIST&p_acyr_code=2022&p_crse_numb=299&p_subj=ASIA'
-text_content = extract_text_from_website(database_url, parent_class='col-lg-12 course', child_element='div')
+# # Example usage
+# database_url = 'https://courses.rice.edu/courses/courses/!SWKSCAT.cat?p_action=CATALIST&p_acyr_code=2022&p_crse_numb=299&p_subj=ASIA'
+# text_content = extract_text_from_website(database_url, parent_class='col-lg-12 course', child_element='div')
 
-print(text_content)
+# print(text_content)

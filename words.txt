@@ -1,5 +1,5 @@
 Air
-AlternativeTransportation
+Alternative Transportation
 Biodiversity
 Biomes
 CO2
@@ -21,7 +21,7 @@ Emission
 Energy
 Environment
 Environmental
-EnvironmentalPolicy
+Environmental Policy
 Equality
 Equity
 Erosion
@@ -34,12 +34,12 @@ Green
 Habitat
 Hydrologic
 Hydrology
-IntegratedPestManagement
-InvasiveSpecies
+Integrated Pest Management
+Invasive Species
 Justice
-LandUse
+Land Use
 Natural
-NaturalResources
+Natural Resources
 Nature
 Nutrition
 Ocean
@@ -47,13 +47,13 @@ Organic
 Pollution
 Poverty
 Preservation
-PublicSafety
+Public Safety
 Race
 Racism
 Recycle
 Recycling
 Renewable
-ResourceManagement
+Resource Management
 Restoration
 Rivers
 Social

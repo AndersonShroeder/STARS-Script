@@ -6,8 +6,8 @@ This repository contains a Python script for processing course descriptions stor
 
 - Extracts course descriptions from URLs.
 - Evaluates course descriptions for sustainability focus or inclusivity.
-- Supports GPT-3-based evaluation or keyword-based evaluation.
-- Exponential backoff for retrying failed operations.
+- (WIP) [Supports GPT-3-based evaluation] or keyword-based evaluation.
+- Exponential backoff for retrying failed API operations.
 - Command-line interface for easy usage.
 
 ## Dependencies
@@ -25,7 +25,7 @@ This repository contains a Python script for processing course descriptions stor
 1. Clone the repository to your local machine:
 
    ```bash
-   git clone https://github.com/your-username/course-description-processor.git
+   git clone https://github.com/AndersonShroeder/course-description-processor.git
    ```
 
 2. Install the required dependencies:
@@ -34,24 +34,23 @@ This repository contains a Python script for processing course descriptions stor
    pip install -r requirements.txt
    ```
 
-3. Prepare your input CSV file with course data. The CSV file should contain at least two columns: one for course descriptions and another for course URLs.
+3. Prepare your input CSV file with course data and update global variables (DESCRIPTION_COLUMN_NAME, COURSE_URL_COLUMN_NAME, COURSE_EVAL_NAME, COURSE_EVAL_REASON_NAME) to reflect the name of columns in CSV.
 
 4. Run the script with the following command:
 
-   ```bash
-   python processor.py <csv_path> <new_file_name>
+   ```
+   python processor.py <csv_path> <new_file_name> <keyword_path (Optional)>
    ```
 
-   Replace `<csv_path>` with the path to your input CSV file and `<new_file_name>` with the desired name for the output CSV file.
+   Replace `<csv_path>` with the path to your input CSV file and `<new_file_name>` with the desired name for the output CSV file and `<keyword_path>` can be optionally filled as the path to keywords to be used. If keyword_path is not filled, the sustainabilty of course descriptions will not be assesed. (WIP) If `<keyword_path>` is GPT, the GPT3 API will be used to evaluate sustainability.
 
-5. Follow the prompts to choose the evaluation method (GPT-3 or keyword-based).
-
-6. Once the script finishes processing, you'll find the processed data saved in the specified output CSV file.
+5. Once the script finishes processing, you'll find the processed data saved in the specified output CSV file.
 
 ## Command-line Arguments
 
 - `<csv_path>`: Path to the input CSV file containing course data.
 - `<new_file_name>`: Name for the output CSV file with processed data.
+- `<keyword_path>`: Path to the keywords to evaluate sustainability.
 
 ## Contributing
 

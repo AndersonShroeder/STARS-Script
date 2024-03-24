@@ -260,7 +260,7 @@ def main(argv):
     """
     # The remaining elements of argv are the command-line arguments
     if len(argv) < 3 or len(argv) > 4:
-        print("Usage: python scraper.py <csv_path> <new_file_name>")
+        print("Usage: python scraper.py <csv_path> <new_file_name> <keywords_path (Optional)>")
         return
 
     # Process command-line arguments

@@ -238,7 +238,7 @@ class Processor:
         is empty. It uses the `extract_text_path` method to extract text content from URLs.
 
         """
-        for i in range(len(self.data[:100])):
+        for i in range(len(self.data)):
             if not pd.isna(self.data[COURSE_URL_COLUMN_NAME][i]) and pd.isna(self.data[DESCRIPTION_COLUMN_NAME][i]):
                 text_content = self.extract_text_path(self.data[COURSE_URL_COLUMN_NAME][i])
                 if text_content:

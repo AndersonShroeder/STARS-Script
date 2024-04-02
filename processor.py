@@ -17,6 +17,7 @@ DESCRIPTION_COLUMN_NAME = "Description"
 COURSE_URL_COLUMN_NAME = "Course URL"
 COURSE_EVAL_NAME = "Assessment of Sustainability Focused or Inclusive"
 COURSE_EVAL_REASON_NAME = "Justification for classification (including quotes from syllabi/course descriptions where applicable)"
+COURSE_TITLE_NAME = "Course Title"
 
 class Processor:
     def __init__(self, csv_path, new_csv_path, keyword_path=None):
@@ -33,113 +34,7 @@ class Processor:
         self.new_csv_path = new_csv_path
         self.keyword_path = keyword_path
         self.keywords = set()
-        self.client = None
-        self.provider = None
-
-    def init_GPT(self):
-        """
-        Initialize GPT (Generative Pre-trained Transformer) model for text completion.
-        """
-        provider = RetryProvider([FreeChatgpt, Liaobots], shuffle=False)
-        client = Client(provider=provider)
-
-        self.client, self.provider = client, provider
-
-    def run_GPT(self, prompt):
-        """
-        Run GPT to generate responses based on the given prompt.
-
-        Parameters:
-        - prompt (str): Prompt for GPT model.
-
-        Returns:
-        - Response from the GPT model.
-        """
-        response = self.client.chat.completions.create(
-            model="",
-            messages=[{"role": "user", "content": f"{prompt}"}],
-            provider=self.provider
-        )
-
-        return response
-
-    def generate_prompts(self):
-        """
-        Generate prompts for GPT based on course descriptions.
-
-        Returns:
-        - List of prompts for GPT.
-        """
-        prompts = []
-        for desc in self.data[DESCRIPTION_COLUMN_NAME]:
-            prompt = f"""A course description is provided below:\n\n{desc}\n\nBased on this course description does this class promote sustainability? 
-                        Please assess it with a 1 (sustainable) or 0 (not sustainable) and provide a one sentence explanation why.
-                        The format should be 1 or 0: [Reason]"""
-            prompts.append(prompt)
-
-        return prompts
-    
-    def parse_response(self, response):
-        """
-        Parse response from GPT.
-
-        Parameters:
-        - response: Response from GPT model.
-
-        Returns:
-        - Eval and reason extracted from response.
-        """
-        evals, reasons = [], []
-        for line in response.choices[0].message.content.split('\n'):
-            i, j = line.split(': ', 1)
-            evals.append(i)
-            reasons.append(j)
         
-        return evals, reasons
-
-    def exponential_backoff(self, func, args, max_retries=5, base_delay=1, max_delay=32):
-        """
-        Execute a function with exponential backoff retry strategy.
-
-        Parameters:
-        - func: The function to execute.
-        - args (list): Arguments to pass to the function.
-        - max_retries (int): The maximum number of retries.
-        - base_delay (float): The initial delay between retries in seconds.
-        - max_delay (float): The maximum delay between retries in seconds.
-
-        Returns:
-        - Result of the function if successful.
-        """
-        retries = 0
-        while True:
-            try:
-                return func(*args)
-            except Exception as e:
-                if retries >= max_retries:
-                    raise e  # If max retries reached, raise the last exception
-                retries += 1
-                delay = min(max_delay, base_delay * (2 ** retries) + random.uniform(0, 1))
-                print(f"Retrying in {delay:.2f} seconds (attempt {retries} of {max_retries})...")
-                time.sleep(delay)
-    
-    def run_keywords_GPT(self):
-        """
-        Run GPT to evaluate course descriptions based on keywords.
-        """
-        evals, reasons = [], []
-        prompts = self.generate_prompts()
-        count = 50
-        while count < len(prompts):
-            response = self.exponential_backoff(self.run_GPT, [prompts[count-50:count]])
-            eval, reason = self.parse_response(response)
-            evals += eval
-            reasons += reason
-            count += 50
-        
-        self.data[COURSE_EVAL_REASON_NAME] = reasons
-        self.data[COURSE_EVAL_NAME] = evals
-
     def extract_text_path(self, url):
         """
         Extract text content from the given URL.
@@ -202,19 +97,39 @@ class Processor:
         Returns:
         - List of results indicating whether keywords are found in descriptions.
         """
-        results = []
+        results_desc = []
+        results_title = []
         for desc in self.data[DESCRIPTION_COLUMN_NAME]:
             if not pd.isna(desc):
                 words = desc.split()
                 if any(word in self.keywords for word in words):
-                    results.append("Y")
+                    results_desc.append("1")
                 else:
-                    results.append("N")
+                    results_desc.append("0")
             else:
-                results.append(False)
+                results_desc.append("0")
+            
+        for title in self.data[COURSE_TITLE_NAME]:
+            if not pd.isna(title):
+                words = title.split()
+                if any(word in self.keywords for word in words):
+                    results_title.append("1")
+                else:
+                    results_title.append("0")
+            else:
+                results_title.append("0")
         
-        self.data[COURSE_EVAL_REASON_NAME] = results
-        return results
+        desc_int = int("".join(x for x in results_desc), 2)
+        title_int = int("".join(x for x in results_title), 2)
+
+        focused = "{0:b}".format(desc_int & title_int)
+        inclusive = "{0:b}".format(desc_int ^ title_int)
+        print(focused)
+
+        print()
+        
+        self.data[COURSE_EVAL_REASON_NAME] = [*focused]
+        return results_desc
         
     def output(self):
         """
@@ -267,14 +182,9 @@ def main(argv):
     print("Reading Data...")
     p = Processor(*argv[1:])
 
-    print("Parsing Descriptions...")   
-    p.run_description()
-
-    if p.keyword_path == "GPT":
-        print("Parsing Description With GPT...")
-        p.init_GPT()
-        p.run_keywords_GPT()
-    elif p.keyword_path is not None:
+    # print("Parsing Descriptions...")   
+    # p.run_description()
+    if p.keyword_path is not None:
         print("Parsing Keywords...")
         p.run_keywords()
 

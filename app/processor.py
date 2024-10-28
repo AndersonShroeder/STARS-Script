@@ -3,13 +3,20 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from scraper import Scraper
 import streamlit as st
-import time
+import asyncio
+import httpx
 
 # Constants for column names in the CSV file
 DESCRIPTION_COLUMN_NAME = "description"
 COURSE_URL_COLUMN_NAME = "url"
 COURSE_EVAL_NAME = "categ"
 COURSE_TITLE_NAME = "name"
+
+async def fetch_description(client, url):
+    response = await client.get(url)
+    if response.status_code == 200:
+        return response.text  # or your specific extraction method
+    return None
 
 class Processor:
     """
@@ -124,14 +131,21 @@ class Processor:
         results = self.check_keywords()
         return results
 
-    def run_description(self):
+    async def run_description(self):
         """
-        Extract descriptions for courses where the description is missing.
+        Extract descriptions for courses where the description is missing asynchronously.
         """
         progress_text = "Fetching course descriptions, please wait."
         my_bar = st.progress(0, text=progress_text)
-        for i in range(len(self.data)):
-            my_bar.progress(i/len(self.data), text=progress_text)
-            if pd.notna(self.data[COURSE_URL_COLUMN_NAME].iloc[i]) and pd.isna(self.data[DESCRIPTION_COLUMN_NAME].iloc[i]):
-                text_content = self.extract_text_path(self.data[COURSE_URL_COLUMN_NAME].iloc[i])
-                self.data.at[i, DESCRIPTION_COLUMN_NAME] = text_content if text_content else pd.NA
+        async with httpx.AsyncClient() as client:
+            tasks = [
+                fetch_description(client, url)
+                for url in self.data[COURSE_URL_COLUMN_NAME]
+                if pd.notna(url) and pd.isna(self.data[DESCRIPTION_COLUMN_NAME])
+            ]
+            descriptions = await asyncio.gather(*tasks)
+
+        for i, desc in enumerate(descriptions):
+            my_bar.progress(i / len(descriptions), text=progress_text)
+            if desc:
+                self.data.at[i, DESCRIPTION_COLUMN_NAME] = desc

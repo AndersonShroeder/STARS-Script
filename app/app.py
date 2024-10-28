@@ -50,6 +50,8 @@ def main():
                 processor.run_description()  # Extract missing descriptions
                 results = processor.run_keywords()  # Check for keywords
 
+                processor.output()
+
                 st.success("Processing Complete!")
 
                 # Write stats

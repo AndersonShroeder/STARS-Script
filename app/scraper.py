@@ -57,6 +57,7 @@ class Scraper:
 
                     courses.append({
                         'name': full_course_name,
+                        'long_title': "",
                         'department': subject_code,
                         'number': course_number,
                         'categ': np.nan,

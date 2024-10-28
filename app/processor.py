@@ -6,14 +6,15 @@ import concurrent.futures
 
 # Constants for column names in the CSV file
 DESCRIPTION_COLUMN_NAME = "description"
+LONG_TITLE_COLUMN_NAME = "long_title"
 COURSE_URL_COLUMN_NAME = "url"
 COURSE_EVAL_NAME = "categ"
 COURSE_TITLE_NAME = "name"
 
 class Processor:
     """
-    A class to process course data, extracting descriptions and evaluating keywords 
-    for sustainability and inclusivity assessments.
+    A class to process course data, extracting descriptions and long titles and evaluating 
+    keywords for sustainability and inclusivity assessments.
     """
 
     def __init__(self, course_data: pd.DataFrame, new_csv_path: str, keyword_path: str = None):
@@ -29,27 +30,35 @@ class Processor:
         self.keyword_path = keyword_path
         self.keywords = set()
 
-    def extract_text_path(self, url: str) -> str:
+    def extract_text_path(self, url: str) -> tuple:
         """
-        Extract the course description from the course webpage.
+        Extract the course description and long title from the course webpage.
 
         :param url: The URL of the course page.
-        :return: The course description text or an error message.
+        :return: A tuple containing the course description and long title text.
         """
         try:
             response = requests.get(url, allow_redirects=True, timeout=3)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
+            description_text, long_title_text = "", ""
 
+            # Locate the long title
+            long_title = soup.select_one("h3")
+            if long_title:
+                long_title_text = long_title.get_text(strip=True)
+
+            # Locate the description
             for i in range(9, 12):  # Adjust indices based on HTML structure
                 target_div = soup.select_one(f'body > div > div:nth-child(6) > div:nth-child(2) > div > div:nth-child({i})')
                 if self.check_description(target_div):
-                    return target_div.get_text(strip=True)
+                    description_text = target_div.get_text(strip=True)
+                    break
 
-            return ""
+            return description_text, long_title_text
         except Exception as e:
-            return f"An error occurred: {str(e)}"
+            return f"An error occurred: {str(e)}", ""
 
     def check_description(self, text) -> bool:
         """
@@ -86,8 +95,8 @@ class Processor:
             else:
                 results_desc.append(0)
 
-        # Check titles for keywords
-        for title in self.data[COURSE_TITLE_NAME]:
+        # Check long titles for keywords
+        for title in self.data[LONG_TITLE_COLUMN_NAME]:
             if pd.notna(title):
                 words = title.lower().split()
                 results_title.append(1 if any(word in self.keywords for word in words) else 0)
@@ -100,10 +109,6 @@ class Processor:
             if d == 1 and t == 1:
                 results.append("2")
             elif d == 1 or t == 1:
-                if d == 1:
-                    print("d")
-                else:
-                    print("t")
                 results.append("1")
             else:
                 results.append("0")
@@ -127,23 +132,25 @@ class Processor:
         results = self.check_keywords()
         return results
 
-
     def run_description(self):
-        progress_text = "Fetching course descriptions, please wait."
+        progress_text = "Fetching course descriptions and titles, please wait."
         my_bar = st.progress(0, text=progress_text)
 
-        # Filter only rows that need descriptions
-        missing_descriptions = self.data[pd.isna(self.data[DESCRIPTION_COLUMN_NAME]) & pd.notna(self.data[COURSE_URL_COLUMN_NAME])]
+        # Filter only rows that need descriptions and titles
+        missing_data = self.data[
+            (pd.isna(self.data[DESCRIPTION_COLUMN_NAME]) | pd.isna(self.data[LONG_TITLE_COLUMN_NAME])) & 
+            pd.notna(self.data[COURSE_URL_COLUMN_NAME])
+        ]
 
-        def fetch_and_store_description(index, url):
-            text_content = self.extract_text_path(url)
-            return index, text_content if text_content else pd.NA
+        def fetch_and_store_data(index, url):
+            description, long_title = self.extract_text_path(url)
+            return index, description, long_title
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = {executor.submit(fetch_and_store_description, i, row[COURSE_URL_COLUMN_NAME]): i for i, row in missing_descriptions.iterrows()}
+            futures = {executor.submit(fetch_and_store_data, i, row[COURSE_URL_COLUMN_NAME]): i for i, row in missing_data.iterrows()}
 
             for i, future in enumerate(concurrent.futures.as_completed(futures), 1):
-                index, text_content = future.result()
-                self.data.at[index, DESCRIPTION_COLUMN_NAME] = text_content
-                my_bar.progress(i / len(missing_descriptions), text=progress_text)
-
+                index, description, long_title = future.result()
+                self.data.at[index, DESCRIPTION_COLUMN_NAME] = description if description else pd.NA
+                self.data.at[index, LONG_TITLE_COLUMN_NAME] = long_title if long_title else pd.NA
+                my_bar.progress(i / len(missing_data), text=progress_text)

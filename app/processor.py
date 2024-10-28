@@ -3,20 +3,14 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from scraper import Scraper
 import streamlit as st
-import asyncio
-import httpx
+import time
+import concurrent.futures
 
 # Constants for column names in the CSV file
 DESCRIPTION_COLUMN_NAME = "description"
 COURSE_URL_COLUMN_NAME = "url"
 COURSE_EVAL_NAME = "categ"
 COURSE_TITLE_NAME = "name"
-
-async def fetch_description(client, url):
-    response = await client.get(url)
-    if response.status_code == 200:
-        return response.text  # or your specific extraction method
-    return None
 
 class Processor:
     """
@@ -45,7 +39,7 @@ class Processor:
         :return: The course description text or an error message.
         """
         try:
-            response = requests.get(url, allow_redirects=True, timeout=10)
+            response = requests.get(url, allow_redirects=True, timeout=3)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -131,21 +125,23 @@ class Processor:
         results = self.check_keywords()
         return results
 
-    async def run_description(self):
-        """
-        Extract descriptions for courses where the description is missing asynchronously.
-        """
+
+    def run_description(self):
         progress_text = "Fetching course descriptions, please wait."
         my_bar = st.progress(0, text=progress_text)
-        async with httpx.AsyncClient() as client:
-            tasks = [
-                fetch_description(client, url)
-                for url in self.data[COURSE_URL_COLUMN_NAME]
-                if pd.notna(url) and pd.isna(self.data[DESCRIPTION_COLUMN_NAME])
-            ]
-            descriptions = await asyncio.gather(*tasks)
 
-        for i, desc in enumerate(descriptions):
-            my_bar.progress(i / len(descriptions), text=progress_text)
-            if desc:
-                self.data.at[i, DESCRIPTION_COLUMN_NAME] = desc
+        # Filter only rows that need descriptions
+        missing_descriptions = self.data[pd.isna(self.data[DESCRIPTION_COLUMN_NAME]) & pd.notna(self.data[COURSE_URL_COLUMN_NAME])]
+
+        def fetch_and_store_description(index, url):
+            text_content = self.extract_text_path(url)
+            return index, text_content if text_content else pd.NA
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = {executor.submit(fetch_and_store_description, i, row[COURSE_URL_COLUMN_NAME]): i for i, row in missing_descriptions.iterrows()}
+
+            for i, future in enumerate(concurrent.futures.as_completed(futures), 1):
+                index, text_content = future.result()
+                self.data.at[index, DESCRIPTION_COLUMN_NAME] = text_content
+                my_bar.progress(i / len(missing_descriptions), text=progress_text)
+

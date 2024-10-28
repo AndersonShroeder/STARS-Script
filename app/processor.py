@@ -100,6 +100,10 @@ class Processor:
             if d == 1 and t == 1:
                 results.append("2")
             elif d == 1 or t == 1:
+                if d == 1:
+                    print("d")
+                else:
+                    print("t")
                 results.append("1")
             else:
                 results.append("0")

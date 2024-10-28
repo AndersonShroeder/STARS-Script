@@ -1,9 +1,7 @@
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
-from scraper import Scraper
 import streamlit as st
-import time
 import concurrent.futures
 
 # Constants for column names in the CSV file
